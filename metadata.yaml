@@ -17,5 +17,5 @@ documentation: "https://convery.io/docs"
 
 versions:
   # Latest Version
-  - sha: d8f16cfb42fd1a16fde31bc8d08df1699532e61d
+  - sha: 2e079b2ed24e60a0ba6e5d96d738b7cd291c0bf2
     changeNotes: Initial release.
