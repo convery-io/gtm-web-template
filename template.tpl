@@ -565,6 +565,7 @@ const getUrl = require('getUrl');
 const getReferrerUrl = require('getReferrerUrl');
 const readTitle = require('readTitle');
 const math = require('Math');
+const random = require('generateRandom');
 const date = require('getTimestampMillis');
 
 //data from models
@@ -616,14 +617,14 @@ function g_arrayMerge() {
   return r;
 }
 
-function g_anonymizeTransaction() {
- var dt, r, tid;
+function g_anonymizeTransaction(){
+  var dt, r, tid;
   if (data.user_consent == false){
-     dt = date();
-     r = (dt + math.random()*5);
-     r = math.floor (r/5);
-     tid = 'C-' + r.toString();  
-  } else{
+    dt = date();
+    r = (random(dt,1000));
+    r = math.floor(r/1000);
+    tid = 'C' + r.toString();
+  } else {
     tid = (use_datalayer) ? ecommerce.transaction_id : data.event_data_transaction_id;
   }
   return tid;
@@ -643,7 +644,7 @@ function g_content (){
     break;  
     case "purchase":
         content ={
-          "transaction_id": (use_datalayer) ? ecommerce.transaction_id : data.event_data_transaction_id,
+          "transaction_id": g_anonymizeTransaction(),
           "affiliation": "" + data.stream_id + "",
           "tax": (use_datalayer) ? ecommerce.tax : data.event_data_tax, 
           "shipping": (use_datalayer) ? ecommerce.shipping : data.event_data_shipping_value,
@@ -718,7 +719,7 @@ ___WEB_PERMISSIONS___
           "key": "environments",
           "value": {
             "type": 1,
-            "string": "debug"
+            "string": "all"
           }
         }
       ]
@@ -932,6 +933,6 @@ scenarios:
 
 ___NOTES___
 
-Created on 28/4/2023, 09:37:53
+Created on 28/4/2023, 17:18:09
 
 
