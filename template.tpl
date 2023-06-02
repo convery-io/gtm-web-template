@@ -1,11 +1,3 @@
-___TERMS_OF_SERVICE___
-
-By creating or modifying this file you agree to Google Tag Manager's Community
-Template Gallery Developer Terms of Service available at
-https://developers.google.com/tag-manager/gallery-tos (or such other URL as
-Google may provide), as modified from time to time.
-
-
 ___INFO___
 
 {
@@ -65,7 +57,7 @@ ___TEMPLATE_PARAMETERS___
         "selectItems": [
           {
             "value": "default",
-            "displayValue": "Defaul"
+            "displayValue": "Default"
           },
           {
             "value": "custom",
@@ -481,7 +473,13 @@ ___TEMPLATE_PARAMETERS___
             "defaultValue": "",
             "displayName": "Name",
             "name": "name",
-            "type": "TEXT"
+            "type": "TEXT",
+            "isUnique": true,
+            "valueValidators": [
+              {
+                "type": "NON_EMPTY"
+              }
+            ]
           },
           {
             "defaultValue": "",
@@ -490,7 +488,8 @@ ___TEMPLATE_PARAMETERS___
             "type": "TEXT"
           }
         ],
-        "newRowButtonText": "Add parameter"
+        "newRowButtonText": "Add parameter",
+        "valueValidators": []
       }
     ]
   },
@@ -531,6 +530,21 @@ ___TEMPLATE_PARAMETERS___
       },
       {
         "type": "GROUP",
+        "name": "anonymize",
+        "displayName": "Anonymization",
+        "groupStyle": "ZIPPY_CLOSED",
+        "subParams": [
+          {
+            "type": "TEXT",
+            "name": "anonymize_params",
+            "displayName": "Data to anonymize",
+            "simpleValueType": true,
+            "help": "Enter path or parameters that may contain personal data"
+          }
+        ]
+      },
+      {
+        "type": "GROUP",
         "name": "bedug_event",
         "displayName": "Convery Debug",
         "groupStyle": "ZIPPY_OPEN_ON_PARAM",
@@ -555,154 +569,175 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
-const log = require('logToConsole');
-const injectScript = require('injectScript');
+// APIs
+const convery = require('callInWindow');
 const copyFromDataLayer = require('copyFromDataLayer');
-const makeTableMap = require('makeTableMap');
-const convery = require('callInWindow'); 
-const JSON = require('JSON');
-const getUrl = require('getUrl');
+const date = require('getTimestampMillis');
 const getReferrerUrl = require('getReferrerUrl');
-const readTitle = require('readTitle');
+const getUrl = require('getUrl');
+const injectScript = require('injectScript');
+//const JSON = require('JSON');
+const log = require('logToConsole');
+const makeTableMap = require('makeTableMap');
 const math = require('Math');
 const random = require('generateRandom');
-const date = require('getTimestampMillis');
+const readTitle = require('readTitle');
 
-//data from models
+// User input
 const event_category = data.event_category;
-var event_type = data.event_type;
+const event_type = data.event_type === 'gtm.js' ? 'page_view' : data.event_type;
 const event_use_override_name = data.event_use_override_name;
 const event_override_name = data.event_override_name;
 const use_datalayer = data.event_use_datalayer;
 const event_custom_name = data.event_custom_name;
-const ecommerce = copyFromDataLayer('ecommerce');
+const ecommerce = copyFromDataLayer('ecommerce') || {};
 const customParams = data.customParamsList && data.customParamsList.length ? makeTableMap(data.customParamsList, 'name', 'value') : {};
-const lib = "https://libs.convery.io/analytics.js";
+const consent = data.user_consent === true || data.user_consent === 'true';
 
-const onSuccess = () => { 
-  if (event_type == "gtm.js"){ event_type = "page_view";}  
-  g_sendData(event_type);
-  data.gtmOnSuccess();
-};
-
-const onFailure = () => { 
-  log("Fail to load Convery library");
-  data.gtmOnFailure();
-};
-
-function g_sendData(events) {
-  var event_data, raw_data;
-  var base_data = { "source_id": data.stream_id, "cookie_consent": data.user_consent, "debug":(data.debug) ? true : false };
-  var content_data = g_content();
-  
-  if (event_category == "default" && event_use_override_name == false){
-      event_data ={"action":{"type": "" + event_type + "", "name": ""}};
-  } else if (event_use_override_name == true && event_category == "default") {
-      event_data = {"action":{"type": "" + event_type + "","name": "" + event_override_name +""}};
-  }else if (event_category == "custom"){
-      event_data = {"action":{"type": "" + event_category + "","name": "" + event_custom_name + ""}};
-  }
-  raw_data = g_arrayMerge(base_data, event_data, content_data);   
-  convery('c_readData', raw_data, data.tenant, base_data);  
-}
-
+// Helpers
+const lib = 'https://libs.convery.io/analytics_dev.js';
+// Can't be an arrow function due to arguments
 function g_arrayMerge() {
-  var r = {};
-  var l = arguments.length;
-  for (var i = 0; i < l; i++) {
-    for (var p in arguments[i]) {
-      if (arguments[i].hasOwnProperty(p)) { r[p] = arguments[i][p];}
+  const r = {};
+  const l = arguments.length;
+  for (let i = 0; i < l; i++) {
+    for (let p in arguments[i]) {
+      if (arguments[i].hasOwnProperty(p)) {
+        r[p] = arguments[i][p];
+      }
     }
-  } 
+  }
   return r;
 }
 
-function g_anonymizeTransaction(){
-  var dt, r, tid;
-  if (data.user_consent == false){
-    dt = date();
-    r = (random(dt,1000));
-    r = math.floor(r/1000);
-    tid = 'C' + r.toString();
+const onSuccess = () => {
+  //if (getUrl().indexOf('appspot.com') > 0){g_sendData();}
+  g_sendData();
+  data.gtmOnSuccess();
+};
+
+const onFailure = () => {
+  log('Fail to load Convery library');
+  data.gtmOnFailure();
+};
+
+const g_sendData = (events) => {
+  const event_data = {};
+  const base_data = {
+    source_id: data.stream_id,
+    cookie_consent: consent,
+    debug: data.debug,
+    anonymize: data.anonymize_params
+  };
+  const content_data = g_content();
+
+  if (event_category === 'default' && event_use_override_name === false) {
+    event_data.action = {
+      type: event_type,
+      name: ''
+    };
+  } else if (event_use_override_name === true && event_category === 'default') {
+    event_data.action = {
+      type: event_type,
+      name: event_override_name
+    };
+  } else if (event_category === 'custom') {
+    event_data.action = {
+      type: event_category,
+      name: event_custom_name
+    };
+  }
+ 
+  convery(
+    'c_readData',
+    g_arrayMerge(base_data, event_data, content_data),
+    data.tenant,
+    base_data
+  );
+};
+
+const g_anonymizeTransaction = () => {
+  let tid = '';
+  if (consent) {
+    tid = 'C' + math.floor((random(1000, date())) / 1000).toString();
   } else {
-    tid = (use_datalayer) ? ecommerce.transaction_id : data.event_data_transaction_id;
+    tid = use_datalayer ? ecommerce.transaction_id : data.event_data_transaction_id;
   }
   return tid;
-}
+};
 
-function g_content (){    
-  var content, ready_data;
-  if (event_category == "default"){            
-  switch (event_type){
-    case "page_view":
-        content = {
-        "page_title": "" + readTitle() +"",
-	      "page_location": "" + getUrl() + "",
-	      "page_path": "" + getUrl("path") + "",
-	      "page_referrer": "" + getReferrerUrl() + ""     
-        };
-    break;  
-    case "purchase":
-        content ={
-          "transaction_id": g_anonymizeTransaction(),
-          "affiliation": "" + data.stream_id + "",
-          "tax": (use_datalayer) ? ecommerce.tax : data.event_data_tax, 
-          "shipping": (use_datalayer) ? ecommerce.shipping : data.event_data_shipping_value,
-          "coupon": (use_datalayer) ? ecommerce.coupon : data.event_data_coupon,
-          "items": (use_datalayer) ? ecommerce.items : data.event_data_item,
-          "currency": (use_datalayer) ? ecommerce.currency : data.event_data_currency,
-          "value": (use_datalayer) ? ecommerce.value : data.event_data_value
-        };
-  	break;
-    case "add_shipping_info":
-    	content ={
-          "coupon": (use_datalayer) ? ecommerce.coupon : data.event_data_coupon,
-          "shipping_tier": (use_datalayer) ? ecommerce.shipping_tier : data.event_data_shipping_tier,
-          "items": (use_datalayer) ? ecommerce.items : data.event_data_item,
-          "currency": (use_datalayer) ? ecommerce.currency : data.event_data_currency,
-          "value": (use_datalayer) ? ecommerce.value : data.event_data_value
-        };
-    break;
-    case "add_payment_info":
-    	content ={
-          "coupon": (use_datalayer) ? ecommerce.coupon : data.event_data_coupon,
-          "payment_type": (use_datalayer) ? ecommerce.payment_type : data.event_data_payment_type,
-          "items": (use_datalayer) ? ecommerce.items : data.event_data_item,
-          "currency": (use_datalayer) ? ecommerce.currency : data.event_data_currency,
-          "value": (use_datalayer) ? ecommerce.value : data.event_data_value
-        };
-    break;
-	case "select_item": case "view_item_list":
-		content = {
-         "items": (use_datalayer) ? ecommerce.items : data.event_data_item,
-         "item_list_id": (use_datalayer) ? ecommerce.item_list_id : data.event_data_item_list_id,
-         "item_list_name": (use_datalayer) ? ecommerce.item_list_name : data.event_data_item_list_name
-        };
-    break;
-    case "view_promotion": case "select_promotion":
-    	content = {
-        	"creative_name": (use_datalayer) ? ecommerce.creative_name : data.event_data_creative_name,
-            "creative_slot": (use_datalayer) ? ecommerce.creative_slot : data.event_data_creative_slot,
-            "location_id": (use_datalayer) ? ecommerce.location_id : data.event_data_location_id,
-            "promotion_id": (use_datalayer) ? ecommerce.promotion_id : data.event_data_promotion_id,
-            "promotion_name": (use_datalayer) ? ecommerce.promotion_name : data.event_data_promotion_name,
-            "items": (use_datalayer) ? ecommerce.items : data.event_data_item    
-        };
-    break;
-    default:
-    	content = {    
-        	"items": (use_datalayer) ? ecommerce.items : data.event_data_item,
-            "currency": (use_datalayer) ? ecommerce.currency : data.event_data_currency,
-            "value": (use_datalayer) ? ecommerce.value : data.event_data_value
-	};
-  }}
-      if (customParams.length != 'undefined'){ content = g_arrayMerge(content, customParams); }
-      ready_data = {"event": content};
-      return ready_data; 
-}
+// Anonymizer
+const anonymize_terms = data.anonymize_params ? data.anonymize_params.split(',').map(term => term.trim()) : [];
+const anonymizer = str => anonymize_terms.filter(term => str.indexOf(term) > -1).length > 0;
+
+const g_content = () => {
+  const content = {};
+  if (event_category === 'default') {
+    switch (event_type) {
+      case 'page_view':
+        content.page_title = readTitle();
+        content.page_location = !consent && anonymizer(getUrl()) ? 
+          getUrl('protocol') + '//' + getUrl('host') + '/anonymous_page_view' :
+          getUrl();
+        content.page_path = !consent && anonymizer(getUrl()) ? 
+          '/anonymous_page_view' : 
+          getUrl('path');
+        content.page_referrer = !consent && anonymizer(getReferrerUrl()) ?
+          getReferrerUrl('protocol') + '//' + getReferrerUrl('host') + '/anonymous_referrer' :
+          getReferrerUrl();
+        break;
+      case 'purchase':
+        content.transaction_id = g_anonymizeTransaction();
+        content.affiliation = data.stream_id;
+        content.tax = use_datalayer ? ecommerce.tax : data.event_data_tax;
+        content.shipping = use_datalayer ? ecommerce.shipping : data.event_data_shipping_value;
+        content.coupon = use_datalayer ? ecommerce.coupon : data.event_data_coupon;
+        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
+        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
+        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
+        break;
+      case 'add_shipping_info':
+        content.coupon = use_datalayer ? ecommerce.coupon : data.event_data_coupon;
+        content.shipping_tier = use_datalayer ? ecommerce.shipping_tier : data.event_data_shipping_tier;
+        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
+        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
+        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
+        break;
+      case 'add_payment_info':
+        content.coupon = use_datalayer ? ecommerce.coupon : data.event_data_coupon;
+        content.payment_type = use_datalayer ? ecommerce.payment_type : data.event_data_payment_type;
+        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
+        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
+        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
+        break;
+      case 'select_item':
+      case 'view_item_list':
+        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
+        content.item_list_id = use_datalayer ? ecommerce.item_list_id : data.event_data_item_list_id;
+        content.item_list_name = use_datalayer ? ecommerce.item_list_name : data.event_data_item_list_name;
+        break;
+      case 'view_promotion':
+      case 'select_promotion':
+        content.creative_name = use_datalayer ? ecommerce.creative_name : data.event_data_creative_name;
+        content.creative_slot = use_datalayer ? ecommerce.creative_slot : data.event_data_creative_slot;
+        content.location_id = use_datalayer ? ecommerce.location_id : data.event_data_location_id;
+        content.promotion_id = use_datalayer ? ecommerce.promotion_id : data.event_data_promotion_id;
+        content.promotion_name = use_datalayer ? ecommerce.promotion_name : data.event_data_promotion_name;
+        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
+        break;
+      default:
+        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
+        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
+        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
+    }
+  }
+  log(content);
+  return {
+    event: g_arrayMerge(content, customParams)
+  };
+};
 
 injectScript(lib, onSuccess, onFailure, 'Convery');
-//data.gtmOnSuccess();
 
 
 ___WEB_PERMISSIONS___
@@ -719,7 +754,7 @@ ___WEB_PERMISSIONS___
           "key": "environments",
           "value": {
             "type": 1,
-            "string": "all"
+            "string": "debug"
           }
         }
       ]
@@ -834,7 +869,7 @@ ___WEB_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
-                "string": "https://libs.convery.io/analytics.js"
+                "string": "https://libs.convery.io/analytics_dev.js"
               }
             ]
           }
@@ -918,7 +953,7 @@ ___WEB_PERMISSIONS___
 ___TESTS___
 
 scenarios:
-- name: Untitled test 1
+- name: Untitled test 2
   code: |-
     const mockData = {
       // Mocked field values
@@ -933,6 +968,6 @@ scenarios:
 
 ___NOTES___
 
-Created on 28/4/2023, 17:18:09
+Created on 28/4/2023, 14:05:57
 
 
