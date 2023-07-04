@@ -14,7 +14,9 @@ ___INFO___
   "version": 1,
   "securityGroups": [],
   "displayName": "Convery",
-  "categories": ["ANALYTICS"],
+  "categories": [
+    "ANALYTICS"
+  ],
   "brand": {
     "id": "brand_dummy",
     "displayName": "",
@@ -33,7 +35,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "TEXT",
     "name": "tenant",
-    "displayName": "Property id",
+    "displayName": "Property ID",
     "simpleValueType": true,
     "valueHint": "XXXX-XXXX-XXXX-XXXX",
     "alwaysInSummary": true,
@@ -46,15 +48,61 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "TEXT",
     "name": "stream_id",
-    "displayName": "Data stream id",
+    "displayName": "Data Stream ID",
     "simpleValueType": true,
-    "defaultValue": 1,
-    "alwaysInSummary": true
+    "alwaysInSummary": true,
+    "valueHint": "C-XXXXXXXXXX",
+    "valueValidators": [
+      {
+        "type": "REGEX",
+        "args": [
+          "^C-[a-zA-Z0-9]{10}$"
+        ],
+        "errorMessage": "Please add the Stream ID in the correct format (C-XXXXXXXXXX)."
+      },
+      {
+        "type": "NON_EMPTY"
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
+    "name": "privacy",
+    "displayName": "Privacy Settings",
+    "groupStyle": "ZIPPY_OPEN",
+    "subParams": [
+      {
+        "type": "SELECT",
+        "name": "consent",
+        "displayName": "Consent",
+        "macrosInSelect": true,
+        "selectItems": [
+          {
+            "value": true,
+            "displayValue": "true"
+          },
+          {
+            "value": false,
+            "displayValue": "false"
+          }
+        ],
+        "simpleValueType": true,
+        "help": "If you use a GTM variable to fetch the consent status dynamically, make sure the variable returns a Boolean \u003ccode\u003etrue\u003c/code\u003e or \u003ccode\u003efalse\u003c/code\u003e value."
+      },
+      {
+        "type": "TEXT",
+        "name": "anonymizeTerms",
+        "displayName": "Anonymization Triggers",
+        "simpleValueType": true,
+        "help": "If you add a comma-separated list of terms in this field, then Convery will anonymize all data that contains any of these terms prior to being sent to the collection servers.",
+        "valueHint": "e.g. username,email,password"
+      }
+    ]
   },
   {
     "type": "GROUP",
     "name": "event_info",
-    "displayName": "Event settings",
+    "displayName": "Event Settings",
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
@@ -204,12 +252,12 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "GROUP",
     "name": "event_data_info",
-    "displayName": "Event data",
+    "displayName": "Event Data",
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
         "type": "GROUP",
-        "name": "ecommece_data",
+        "name": "ecommerce_data",
         "displayName": "Ecommerce",
         "groupStyle": "ZIPPY_CLOSED",
         "subParams": [
@@ -469,7 +517,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "GROUP",
     "name": "event_custom_params",
-    "displayName": "Custom parameters",
+    "displayName": "Custom Parameters",
     "groupStyle": "ZIPPY_OPEN_ON_PARAM",
     "subParams": [
       {
@@ -503,72 +551,24 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
-    "name": "other_settings",
-    "displayName": "Other settings",
+    "name": "additional_settings",
+    "displayName": "Additional Settings",
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
-        "type": "GROUP",
-        "name": "cookie",
-        "displayName": "Cookie consent",
-        "groupStyle": "ZIPPY_OPEN_ON_PARAM",
-        "subParams": [
-          {
-            "type": "SELECT",
-            "name": "user_consent",
-            "displayName": "Cookie consent (GDPR)",
-            "macrosInSelect": true,
-            "selectItems": [
-              {
-                "value": true,
-                "displayValue": "true"
-              },
-              {
-                "value": false,
-                "displayValue": "false"
-              }
-            ],
-            "simpleValueType": true,
-            "notSetText": "Non impostato",
-            "defaultValue": false,
-            "enablingConditions": []
-          }
-        ],
-        "enablingConditions": []
+        "type": "CHECKBOX",
+        "name": "debug",
+        "checkboxText": "Activate Convery debugger",
+        "simpleValueType": true,
+        "help": "Only use this when testing and/or configuring the tag."
       },
       {
-        "type": "GROUP",
-        "name": "anonymize",
-        "displayName": "Anonymization",
-        "groupStyle": "ZIPPY_CLOSED",
-        "subParams": [
-          {
-            "type": "TEXT",
-            "name": "anonymize_params",
-            "displayName": "Data to anonymize",
-            "simpleValueType": true,
-            "help": "Enter path or parameters that may contain personal data"
-          }
-        ]
-      },
-      {
-        "type": "GROUP",
-        "name": "bedug_event",
-        "displayName": "Convery Debug",
-        "groupStyle": "ZIPPY_OPEN_ON_PARAM",
-        "subParams": [
-          {
-            "type": "LABEL",
-            "name": "info",
-            "displayName": "Attention! Use this function only during configuration."
-          },
-          {
-            "type": "CHECKBOX",
-            "name": "debug",
-            "checkboxText": "Active Convery debugger",
-            "simpleValueType": true
-          }
-        ]
+        "type": "TEXT",
+        "name": "cross_domain",
+        "displayName": "Cross-domain URLs",
+        "simpleValueType": true,
+        "valueHint": "www.mydomain.com,www.otherdomain.com",
+        "help": "Enter a comma-separated list of domains that you want to enable cross-domain tracking for."
       }
     ]
   }
@@ -578,171 +578,104 @@ ___TEMPLATE_PARAMETERS___
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
 // APIs
-const convery = require('callInWindow');
+const callInWindow = require('callInWindow');
 const copyFromDataLayer = require('copyFromDataLayer');
-const date = require('getTimestampMillis');
-const getReferrerUrl = require('getReferrerUrl');
-const getUrl = require('getUrl');
 const injectScript = require('injectScript');
-//const JSON = require('JSON');
 const log = require('logToConsole');
 const makeTableMap = require('makeTableMap');
-const math = require('Math');
-const random = require('generateRandom');
-const readTitle = require('readTitle');
 
 // User input
-const event_category = data.event_category;
-const event_type = data.event_type === 'gtm.js' ? 'page_view' : data.event_type;
-const event_use_override_name = data.event_use_override_name;
-const event_override_name = data.event_override_name;
-const use_datalayer = data.event_use_datalayer;
-const event_custom_name = data.event_custom_name;
-const ecommerce = copyFromDataLayer('ecommerce') || {};
-const customParams = data.customParamsList && data.customParamsList.length ? makeTableMap(data.customParamsList, 'name', 'value') : {};
-const consent = data.user_consent === true || data.user_consent === 'true';
+const eventType = data.event_type === 'gtm.js' ? 'page_view' : data.event_type;
+const ecommerce = data.event_use_datalayer ? copyFromDataLayer('ecommerce', 1) || {} : {};
 
 // Helpers
-const lib = 'https://libs.convery.io/analytics_dev.js';
-// Can't be an arrow function due to arguments
-function g_arrayMerge() {
-  const r = {};
-  const l = arguments.length;
-  for (let i = 0; i < l; i++) {
-    for (let p in arguments[i]) {
-      if (arguments[i].hasOwnProperty(p)) {
-        r[p] = arguments[i][p];
-      }
-    }
+const lib = 'https://libs.convery.io/new_pixel.js';
+const normalize = val => {
+  if (val === true || val === 'true') return true;
+  if (val === false || val === 'false') return false;
+  return val;
+};
+
+const init = () => {
+  callInWindow('_convery.init', {
+    tenant_id: data.tenant,
+    stream_id: data.stream_id,
+    consent: normalize(data.consent),
+    debug_mode: data.debug,
+    anonymize: data.anonymizeTerms ? data.anonymizeTerms.split(',').map(term => term.trim()) : [],
+    x_domain: data.cross_domain ? data.cross_domain.split(',').map(domain => domain.trim()) : []
+  });
+};
+
+const sendData = () => {
+  const eventObject = {
+    category: data.event_category,
+    type: eventType,
+    custom_name: data.event_custom_name || data.event_override_name,
+    extra_params: data.customParamsList && data.customParamsList.length ? makeTableMap(data.customParamsList, 'name', 'value') : {},
+    params: {}
+  };
+  switch(eventType) {
+    case 'purchase':
+      eventObject.params.transaction_id = ecommerce.transaction_id || data.event_data_transaction_id;
+      eventObject.params.affiliation = data.stream_id;
+      eventObject.params.tax = ecommerce.tax || data.event_data_tax;
+      eventObject.params.shipping = ecommerce.shipping || data.event_data_shipping_value;
+      eventObject.params.coupon = ecommerce.coupon || data.event_data_coupon;
+      eventObject.params.items = ecommerce.items || data.event_data_item;
+      eventObject.params.currency = ecommerce.currency || data.event_data_currency;
+      eventObject.params.value = ecommerce.value || data.event_data_value;
+      break;
+    case 'add_shipping_info':
+      eventObject.params.coupon = ecommerce.coupon || data.event_data_coupon;
+      eventObject.params.shipping_tier = ecommerce.shipping_tier || data.event_data_shipping_tier;
+      eventObject.params.items = ecommerce.items || data.event_data_item;
+      eventObject.params.currency = ecommerce.currency || data.event_data_currency;
+      eventObject.params.value = ecommerce.value || data.event_data_value;
+      break;
+    case 'add_payment_info':
+      eventObject.params.coupon = ecommerce.coupon || data.event_data_coupon;
+      eventObject.params.payment_type = ecommerce.payment_type || data.event_data_payment_type;
+      eventObject.params.items = ecommerce.items || data.event_data_item;
+      eventObject.params.currency = ecommerce.currency || data.event_data_currency;
+      eventObject.params.value = ecommerce.value || data.event_data_value;
+      break;
+    case 'select_item':
+    case 'view_item_list':
+      eventObject.params.items = ecommerce.items || data.event_data_item;
+      eventObject.params.item_list_id = ecommerce.item_list_id || data.event_data_item_list_id;
+      eventObject.params.item_list_name = ecommerce.item_list_name || data.event_data_item_list_name;
+      break;
+    case 'view_promotion':
+    case 'select_promotion':
+      eventObject.params.creative_name = ecommerce.creative_name || data.event_data_creative_name;
+      eventObject.params.creative_slot = ecommerce.creative_slot || data.event_data_creative_slot;
+      eventObject.params.location_id = ecommerce.location_id || data.event_data_location_id;
+      eventObject.params.promotion_id = ecommerce.promotion_id || data.event_data_promotion_id;
+      eventObject.params.promotion_name = ecommerce.promotion_name || data.event_data_promotion_name;
+      eventObject.params.items = ecommerce.items || data.event_data_item;
+      break;
+    default:
+      eventObject.params.items = ecommerce.items || data.event_data_item;
+      eventObject.params.currency = ecommerce.currency || data.event_data_currency;
+      eventObject.params.value = ecommerce.value || data.event_data_value;
+      break;
   }
-  return r;
-}
+  log(eventObject);
+  callInWindow('_convery.push', eventObject);
+};
 
 const onSuccess = () => {
-  //if (getUrl().indexOf('appspot.com') > 0){g_sendData();}
-  g_sendData();
+  // No deduplication, init() is called each time the tag fires.
+  init();
+  
+  sendData();
   data.gtmOnSuccess();
 };
 
 const onFailure = () => {
-  log('Fail to load Convery library');
+  log('Failed to load the Convery library');
   data.gtmOnFailure();
-};
-
-const g_sendData = (events) => {
-  const event_data = {};
-  const base_data = {
-    source_id: data.stream_id,
-    cookie_consent: consent,
-    debug: data.debug,
-    anonymize: data.anonymize_params
-  };
-  const content_data = g_content();
-
-  if (event_category === 'default' && event_use_override_name === false) {
-    event_data.action = {
-      type: event_type,
-      name: ''
-    };
-  } else if (event_use_override_name === true && event_category === 'default') {
-    event_data.action = {
-      type: event_type,
-      name: event_override_name
-    };
-  } else if (event_category === 'custom') {
-    event_data.action = {
-      type: event_category,
-      name: event_custom_name
-    };
-  }
- 
-  convery(
-    'c_readData',
-    g_arrayMerge(base_data, event_data, content_data),
-    data.tenant,
-    base_data
-  );
-};
-
-const g_anonymizeTransaction = () => {
-  let tid = '';
-  if (consent) {
-    tid = 'C' + math.floor((random(1000, date())) / 1000).toString();
-  } else {
-    tid = use_datalayer ? ecommerce.transaction_id : data.event_data_transaction_id;
-  }
-  return tid;
-};
-
-// Anonymizer
-const anonymize_terms = data.anonymize_params ? data.anonymize_params.split(',').map(term => term.trim()) : [];
-const anonymizer = str => anonymize_terms.filter(term => str.indexOf(term) > -1).length > 0;
-
-const g_content = () => {
-  const content = {};
-  if (event_category === 'default') {
-    switch (event_type) {
-      case 'page_view':
-        content.page_title = readTitle();
-        content.page_location = !consent && anonymizer(getUrl()) ? 
-          getUrl('protocol') + '//' + getUrl('host') + '/anonymous_page_view' :
-          getUrl();
-        content.page_path = !consent && anonymizer(getUrl()) ? 
-          '/anonymous_page_view' : 
-          getUrl('path');
-        content.page_referrer = !consent && anonymizer(getReferrerUrl()) ?
-          getReferrerUrl('protocol') + '//' + getReferrerUrl('host') + '/anonymous_referrer' :
-          getReferrerUrl();
-        break;
-      case 'purchase':
-        content.transaction_id = g_anonymizeTransaction();
-        content.affiliation = data.stream_id;
-        content.tax = use_datalayer ? ecommerce.tax : data.event_data_tax;
-        content.shipping = use_datalayer ? ecommerce.shipping : data.event_data_shipping_value;
-        content.coupon = use_datalayer ? ecommerce.coupon : data.event_data_coupon;
-        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
-        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
-        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
-        break;
-      case 'add_shipping_info':
-        content.coupon = use_datalayer ? ecommerce.coupon : data.event_data_coupon;
-        content.shipping_tier = use_datalayer ? ecommerce.shipping_tier : data.event_data_shipping_tier;
-        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
-        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
-        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
-        break;
-      case 'add_payment_info':
-        content.coupon = use_datalayer ? ecommerce.coupon : data.event_data_coupon;
-        content.payment_type = use_datalayer ? ecommerce.payment_type : data.event_data_payment_type;
-        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
-        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
-        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
-        break;
-      case 'select_item':
-      case 'view_item_list':
-        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
-        content.item_list_id = use_datalayer ? ecommerce.item_list_id : data.event_data_item_list_id;
-        content.item_list_name = use_datalayer ? ecommerce.item_list_name : data.event_data_item_list_name;
-        break;
-      case 'view_promotion':
-      case 'select_promotion':
-        content.creative_name = use_datalayer ? ecommerce.creative_name : data.event_data_creative_name;
-        content.creative_slot = use_datalayer ? ecommerce.creative_slot : data.event_data_creative_slot;
-        content.location_id = use_datalayer ? ecommerce.location_id : data.event_data_location_id;
-        content.promotion_id = use_datalayer ? ecommerce.promotion_id : data.event_data_promotion_id;
-        content.promotion_name = use_datalayer ? ecommerce.promotion_name : data.event_data_promotion_name;
-        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
-        break;
-      default:
-        content.items = use_datalayer ? ecommerce.items : data.event_data_item;
-        content.currency = use_datalayer ? ecommerce.currency : data.event_data_currency;
-        content.value = use_datalayer ? ecommerce.value : data.event_data_value;
-    }
-  }
-  log(content);
-  return {
-    event: g_arrayMerge(content, customParams)
-  };
 };
 
 injectScript(lib, onSuccess, onFailure, 'Convery');
@@ -807,7 +740,7 @@ ___WEB_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "c_readData"
+                    "string": "_convery.init"
                   },
                   {
                     "type": 8,
@@ -815,43 +748,52 @@ ___WEB_PERMISSIONS___
                   },
                   {
                     "type": 8,
-                    "boolean": true
+                    "boolean": false
                   },
                   {
                     "type": 8,
                     "boolean": true
                   }
                 ]
-              }
-            ]
-          }
-        }
-      ]
-    },
-    "clientAnnotations": {
-      "isEditedByUser": true
-    },
-    "isRequired": true
-  },
-  {
-    "instance": {
-      "key": {
-        "publicId": "read_data_layer",
-        "versionId": "1"
-      },
-      "param": [
-        {
-          "key": "keyPatterns",
-          "value": {
-            "type": 2,
-            "listItem": [
-              {
-                "type": 1,
-                "string": "gtm.event"
               },
               {
-                "type": 1,
-                "string": "ecommerce"
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "_convery.push"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  }
+                ]
               }
             ]
           }
@@ -877,7 +819,7 @@ ___WEB_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
-                "string": "https://libs.convery.io/analytics_dev.js"
+                "string": "https://libs.convery.io/new_pixel.js"
               }
             ]
           }
@@ -892,60 +834,20 @@ ___WEB_PERMISSIONS___
   {
     "instance": {
       "key": {
-        "publicId": "get_referrer",
+        "publicId": "read_data_layer",
         "versionId": "1"
       },
       "param": [
         {
-          "key": "urlParts",
+          "key": "keyPatterns",
           "value": {
-            "type": 1,
-            "string": "any"
-          }
-        },
-        {
-          "key": "queriesAllowed",
-          "value": {
-            "type": 1,
-            "string": "any"
-          }
-        }
-      ]
-    },
-    "clientAnnotations": {
-      "isEditedByUser": true
-    },
-    "isRequired": true
-  },
-  {
-    "instance": {
-      "key": {
-        "publicId": "read_title",
-        "versionId": "1"
-      },
-      "param": []
-    },
-    "isRequired": true
-  },
-  {
-    "instance": {
-      "key": {
-        "publicId": "get_url",
-        "versionId": "1"
-      },
-      "param": [
-        {
-          "key": "urlParts",
-          "value": {
-            "type": 1,
-            "string": "any"
-          }
-        },
-        {
-          "key": "queriesAllowed",
-          "value": {
-            "type": 1,
-            "string": "any"
+            "type": 2,
+            "listItem": [
+              {
+                "type": 1,
+                "string": "ecommerce"
+              }
+            ]
           }
         }
       ]
@@ -960,22 +862,11 @@ ___WEB_PERMISSIONS___
 
 ___TESTS___
 
-scenarios:
-- name: Untitled test 2
-  code: |-
-    const mockData = {
-      // Mocked field values
-    };
-
-    // Call runCode to run the template's code.
-    runCode(mockData);
-
-    // Verify that the tag finished successfully.
-    assertApi('gtmOnSuccess').wasCalled();
+scenarios: []
+setup: ''
 
 
 ___NOTES___
 
 Created on 28/4/2023, 14:05:57
-
 

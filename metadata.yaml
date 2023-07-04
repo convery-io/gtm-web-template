@@ -13,9 +13,11 @@
 # limitations under the License.
 
 homepage: "https://convery.io/"
-documentation: "https://convery.io/docs"
+documentation: "https://help.convery.io"
+
 
 versions:
   # Latest Version
+
   - sha: c1fcb895f769cca153a3c003866c612813c2e81e
     changeNotes: Initial release.
