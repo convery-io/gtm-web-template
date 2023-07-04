@@ -5,7 +5,6 @@ Template Gallery Developer Terms of Service available at
 https://developers.google.com/tag-manager/gallery-tos (or such other URL as
 Google may provide), as modified from time to time.
 
-
 ___INFO___
 
 {
@@ -589,7 +588,7 @@ const eventType = data.event_type === 'gtm.js' ? 'page_view' : data.event_type;
 const ecommerce = data.event_use_datalayer ? copyFromDataLayer('ecommerce', 1) || {} : {};
 
 // Helpers
-const lib = 'https://libs.convery.io/new_pixel.js';
+const lib = 'https://libs.convery.io/convery-sdk.js';
 const normalize = val => {
   if (val === true || val === 'true') return true;
   if (val === false || val === 'false') return false;
@@ -819,7 +818,7 @@ ___WEB_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
-                "string": "https://libs.convery.io/new_pixel.js"
+                "string": "https://libs.convery.io/convery-sdk.js"
               }
             ]
           }
@@ -869,4 +868,5 @@ setup: ''
 ___NOTES___
 
 Created on 28/4/2023, 14:05:57
+
 
